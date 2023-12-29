@@ -1,3 +1,12 @@
+### August 17, 2023
+`1.2.3`:
+- Extended logger interface with level-aware logging backend functions
+
+### November 09, 2022
+`1.2.2`:
+- Added new `CustomPojoSerializer` interface
+- Removed unnecessary usage of public on interface methods (aws#172) 
+
 ### April 28, 2020
 `1.2.1`:
 - Added missing XML namespace declarations to `pom.xml` file ([#97](https://github.com/aws/aws-lambda-java-libs/issues/97))

@@ -19,10 +19,10 @@ package com.amazonaws.services.lambda.runtime.api.client;
  * Lambda runtimes set several environment variables during initialization.
  * Most of the environment variables provide information about the function or runtime.
  * The keys for these environment variables are reserved and cannot be set in your function configuration.
+ *
  * @see <a href="https://docs.aws.amazon.com/lambda/latest/dg/configuration-envvars.html#configuration-envvars-runtime">Using AWS Lambda Environment Variables</a>
- *
+ * <p>
  * NOTICE: This class is forked from io.micronaut.function.aws.runtime.ReservedRuntimeEnvironments found at https://github.com/micronaut-projects/micronaut-aws
- *
  */
 public interface ReservedRuntimeEnvironmentVariables {
 
@@ -67,6 +67,16 @@ public interface ReservedRuntimeEnvironmentVariables {
     String AWS_LAMBDA_LOG_STREAM_NAME = "AWS_LAMBDA_LOG_STREAM_NAME";
 
     /**
+     * The logging level set for the function.
+     */
+    String AWS_LAMBDA_LOG_LEVEL = "AWS_LAMBDA_LOG_LEVEL";
+
+    /**
+     * The logging format set for the function.
+     */
+    String AWS_LAMBDA_LOG_FORMAT = "AWS_LAMBDA_LOG_FORMAT";
+
+    /**
      * Access key id obtained from the function's execution role.
      */
     String AWS_ACCESS_KEY_ID = "AWS_ACCESS_KEY_ID";
@@ -77,7 +87,6 @@ public interface ReservedRuntimeEnvironmentVariables {
     String AWS_SECRET_ACCESS_KEY = "AWS_SECRET_ACCESS_KEY";
 
     /**
-     *
      * The access keys obtained from the function's execution role.
      */
     String AWS_SESSION_TOKEN = "AWS_SESSION_TOKEN";
@@ -86,6 +95,12 @@ public interface ReservedRuntimeEnvironmentVariables {
      * (Custom runtime) The host and port of the runtime API.
      */
     String AWS_LAMBDA_RUNTIME_API = "AWS_LAMBDA_RUNTIME_API";
+
+
+    /**
+     * Initialization type
+     */
+    String AWS_LAMBDA_INITIALIZATION_TYPE = "AWS_LAMBDA_INITIALIZATION_TYPE";
 
     /**
      * The path to your Lambda function code.

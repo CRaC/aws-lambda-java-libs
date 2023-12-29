@@ -11,6 +11,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * The IAM Policy Response required for API Gateway HTTP APIs
+ *
+ * https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-lambda-authorizer.html
+ *
+ */
+
 @Data
 @Builder(setterPrefix = "with")
 @NoArgsConstructor
