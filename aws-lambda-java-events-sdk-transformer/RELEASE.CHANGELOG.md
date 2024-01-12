@@ -1,3 +1,23 @@
+### February 03, 2022
+`3.1.0`:
+-  Make DynamodbAttributeValueTransformer v1 and v2 return empty list instead of null for empty list attribute ([#309](https://github.com/aws/aws-lambda-java-libs/pull/309))
+
+### November 24, 2021
+`3.0.7`:
+- Bumped `aws-lambda-java-events` to version `3.11.0`
+
+### September 02, 2021
+`3.0.6`:
+- Fixed NPE when UserIdentity, OldImage, or NewImage is null ([#264](https://github.com/aws/aws-lambda-java-libs/pull/264))
+
+### August 26, 2021
+`3.0.5`:
+- Bumped `aws-lambda-java-events` to version `3.10.0`
+
+### June 2, 2021
+`3.0.4`:
+- Bumped `aws-lambda-java-events` to version `3.9.0`
+
 ### March 24, 2021
 `3.0.3`:
 - Bumped `aws-lambda-java-events` to version `3.8.0`

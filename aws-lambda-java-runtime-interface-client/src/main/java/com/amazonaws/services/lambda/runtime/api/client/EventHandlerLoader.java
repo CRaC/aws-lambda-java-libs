@@ -4,13 +4,16 @@ package com.amazonaws.services.lambda.runtime.api.client;
 
 import com.amazonaws.services.lambda.runtime.ClientContext;
 import com.amazonaws.services.lambda.runtime.Context;
+import com.amazonaws.services.lambda.runtime.LambdaLogger;
+import com.amazonaws.services.lambda.runtime.LambdaRuntimeInternal;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.amazonaws.services.lambda.runtime.RequestStreamHandler;
-import com.amazonaws.services.lambda.runtime.LambdaRuntimeInternal;
-
+import com.amazonaws.services.lambda.runtime.api.client.LambdaRequestHandler.UserFaultHandler;
 import com.amazonaws.services.lambda.runtime.api.client.api.LambdaClientContext;
 import com.amazonaws.services.lambda.runtime.api.client.api.LambdaCognitoIdentity;
 import com.amazonaws.services.lambda.runtime.api.client.api.LambdaContext;
+import com.amazonaws.services.lambda.runtime.api.client.logging.LambdaContextLogger;
+import com.amazonaws.services.lambda.runtime.api.client.runtimeapi.InvocationRequest;
 import com.amazonaws.services.lambda.runtime.api.client.util.UnsafeUtil;
 import com.amazonaws.services.lambda.runtime.serialization.PojoSerializer;
 import com.amazonaws.services.lambda.runtime.serialization.events.LambdaEventSerializers;
@@ -18,15 +21,11 @@ import com.amazonaws.services.lambda.runtime.serialization.factories.GsonFactory
 import com.amazonaws.services.lambda.runtime.serialization.factories.JacksonFactory;
 import com.amazonaws.services.lambda.runtime.serialization.util.Functions;
 import com.amazonaws.services.lambda.runtime.serialization.util.ReflectUtil;
-import com.amazonaws.services.lambda.runtime.api.client.LambdaRequestHandler.UserFaultHandler;
-import com.amazonaws.services.lambda.runtime.api.client.runtimeapi.InvocationRequest;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.io.PrintWriter;
-import java.io.StringWriter;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -40,11 +39,10 @@ import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 
-import static com.amazonaws.services.lambda.runtime.api.client.UserFault.filterStackTrace;
-import static com.amazonaws.services.lambda.runtime.api.client.UserFault.makeUserFault;
-import static com.amazonaws.services.lambda.runtime.api.client.UserFault.trace;
+import static com.amazonaws.services.lambda.runtime.api.client.UserFault.*;
 
 public final class EventHandlerLoader {
     private static final byte[] _JsonNull = new byte[]{'n', 'u', 'l', 'l'};
@@ -57,32 +55,37 @@ public final class EventHandlerLoader {
 
     private static final EnumMap<Platform, Map<Type, PojoSerializer<Object>>> typeCache = new EnumMap<>(Platform.class);
 
-    private EventHandlerLoader() { }
+    private EventHandlerLoader() {
+    }
 
     /**
      * returns the appropriate serializer for the class based on platform and whether the class is a supported event
+     *
      * @param platform enum platform
-     * @param type Type of object used
+     * @param type     Type of object used
      * @return PojoSerializer
      * @see Platform for which platforms are used
      * @see LambdaEventSerializers for how mixins and modules are added to the serializer
      */
     @SuppressWarnings({"unchecked", "rawtypes"})
     private static PojoSerializer<Object> getSerializer(Platform platform, Type type) {
+        PojoSerializer<Object> customSerializer = PojoSerializerLoader.getCustomerSerializer(type);
+        if (customSerializer != null) {
+            return customSerializer;
+        }
+
         // if serializing a Class that is a Lambda supported event, use Jackson with customizations
         if (type instanceof Class) {
-            Class<Object> clazz = ((Class)type);
+            Class<Object> clazz = ((Class) type);
             if (LambdaEventSerializers.isLambdaSupportedEvent(clazz.getName())) {
                 return LambdaEventSerializers.serializerFor(clazz, AWSLambda.customerClassLoader);
             }
         }
         // else platform dependent (Android uses GSON but all other platforms use Jackson)
-        switch (platform) {
-            case ANDROID:
-                return GsonFactory.getInstance().getSerializer(type);
-            default:
-                return JacksonFactory.getInstance().getSerializer(type);
+        if (Objects.requireNonNull(platform) == Platform.ANDROID) {
+            return GsonFactory.getInstance().getSerializer(type);
         }
+        return JacksonFactory.getInstance().getSerializer(type);
     }
 
     private static PojoSerializer<Object> getSerializerCached(Platform platform, Type type) {
@@ -145,7 +148,7 @@ public final class EventHandlerLoader {
     }
 
     private static boolean isVoid(Type type) {
-        return Void.TYPE.equals(type) || (type instanceof Class) && Void.class.isAssignableFrom((Class<?>)type);
+        return Void.TYPE.equals(type) || (type instanceof Class) && Void.class.isAssignableFrom((Class<?>) type);
     }
 
     /**
@@ -388,7 +391,7 @@ public final class EventHandlerLoader {
         }
     }
 
-    public static <T> Constructor<T> getConstructor(Class<T> clazz) throws Exception {
+    private static <T> Constructor<T> getConstructor(Class<T> clazz) throws Exception {
         final Constructor<T> constructor;
         try {
             constructor = clazz.getConstructor();
@@ -404,7 +407,7 @@ public final class EventHandlerLoader {
         return constructor;
     }
 
-    public static <T> T newInstance(Constructor<? extends T> constructor) {
+    private static <T> T newInstance(Constructor<? extends T> constructor) {
         try {
             return constructor.newInstance();
         } catch (UserFault e) {
@@ -453,15 +456,15 @@ public final class EventHandlerLoader {
             for (int i = 0; i < types.length; i++) {
                 Type t = types[i];
                 if (t instanceof TypeVariable) {
-                    types[i] = curContext.resolveTypeVariable((TypeVariable)t);
+                    types[i] = curContext.resolveTypeVariable((TypeVariable) t);
                 }
             }
 
             Type t = type.getRawType();
             if (t instanceof Class) {
-                this.clazz = (Class)t;
+                this.clazz = (Class) t;
             } else if (t instanceof TypeVariable) {
-                this.clazz = (Class)((TypeVariable)t).getGenericDeclaration();
+                this.clazz = (Class) ((TypeVariable) t).getGenericDeclaration();
             } else {
                 throw new RuntimeException("Type " + t + " is of unexpected type " + t.getClass());
             }
@@ -494,30 +497,30 @@ public final class EventHandlerLoader {
      *
      * @return null of no type found. Otherwise the type found.
      */
-    public static Type[] findInterfaceParameters(Class<?> clazz, Class<?> iface) {
+    private static Type[] findInterfaceParameters(Class<?> clazz, Class<?> iface) {
         LinkedList<ClassContext> clazzes = new LinkedList<>();
-        clazzes.addFirst(new ClassContext(clazz, (Type[])null));
+        clazzes.addFirst(new ClassContext(clazz, (Type[]) null));
         while (!clazzes.isEmpty()) {
             final ClassContext curContext = clazzes.removeLast();
             Type[] interfaces = curContext.clazz.getGenericInterfaces();
 
             for (Type type : interfaces) {
                 if (type instanceof ParameterizedType) {
-                    ParameterizedType candidate = (ParameterizedType)type;
+                    ParameterizedType candidate = (ParameterizedType) type;
                     Type rawType = candidate.getRawType();
                     if (!(rawType instanceof Class)) {
                         //should be impossible
                         System.err.println("raw type is not a class: " + rawType);
                         continue;
                     }
-                    Class<?> rawClass = (Class<?>)rawType;
+                    Class<?> rawClass = (Class<?>) rawType;
                     if (iface.isAssignableFrom(rawClass)) {
                         return new ClassContext(candidate, curContext).actualTypeArguments;
                     } else {
                         clazzes.addFirst(new ClassContext(candidate, curContext));
                     }
                 } else if (type instanceof Class) {
-                    clazzes.addFirst(new ClassContext((Class<?>)type, curContext));
+                    clazzes.addFirst(new ClassContext((Class<?>) type, curContext));
                 } else {
                     //should never happen?
                     System.err.println("Unexpected type class " + type.getClass().getName());
@@ -526,9 +529,9 @@ public final class EventHandlerLoader {
 
             final Type superClass = curContext.clazz.getGenericSuperclass();
             if (superClass instanceof ParameterizedType) {
-                clazzes.addFirst(new ClassContext((ParameterizedType)superClass, curContext));
+                clazzes.addFirst(new ClassContext((ParameterizedType) superClass, curContext));
             } else if (superClass != null) {
-                clazzes.addFirst(new ClassContext((Class<?>)superClass, curContext));
+                clazzes.addFirst(new ClassContext((Class<?>) superClass, curContext));
             }
         }
         return null;
@@ -536,7 +539,7 @@ public final class EventHandlerLoader {
 
 
     @SuppressWarnings({"rawtypes"})
-    public static LambdaRequestHandler wrapRequestHandlerClass(final Class<? extends RequestHandler> clazz) {
+    private static LambdaRequestHandler wrapRequestHandlerClass(final Class<? extends RequestHandler> clazz) {
         Type[] ptypes = findInterfaceParameters(clazz, RequestHandler.class);
         if (ptypes == null) {
             return new UserFaultHandler(makeUserFault("Class "
@@ -550,7 +553,7 @@ public final class EventHandlerLoader {
 
         for (Type t : ptypes) {
             if (t instanceof TypeVariable) {
-                Type[] bounds = ((TypeVariable)t).getBounds();
+                Type[] bounds = ((TypeVariable) t).getBounds();
                 boolean foundBound = false;
                 if (bounds != null) {
                     for (Type bound : bounds) {
@@ -583,7 +586,7 @@ public final class EventHandlerLoader {
         }
     }
 
-    public static LambdaRequestHandler wrapRequestStreamHandlerClass(final Class<? extends RequestStreamHandler> clazz) {
+    private static LambdaRequestHandler wrapRequestStreamHandlerClass(final Class<? extends RequestStreamHandler> clazz) {
         final Constructor<? extends RequestStreamHandler> constructor;
         try {
             constructor = getConstructor(clazz);
@@ -595,7 +598,7 @@ public final class EventHandlerLoader {
         }
     }
 
-    public static LambdaRequestHandler loadStreamingRequestHandler(Class<?> clazz) {
+    private static LambdaRequestHandler loadStreamingRequestHandler(Class<?> clazz) {
         if (RequestStreamHandler.class.isAssignableFrom(clazz)) {
             return wrapRequestStreamHandlerClass(clazz.asSubclass(RequestStreamHandler.class));
         } else if (RequestHandler.class.isAssignableFrom(clazz)) {
@@ -706,14 +709,14 @@ public final class EventHandlerLoader {
         }
     }
 
-    private static final boolean isContext(Type t) {
+    private static boolean isContext(Type t) {
         return Context.class.equals(t);
     }
 
     /**
      * Returns true if the last type in params is a lambda context object interface (Context).
      */
-    private static final boolean lastParameterIsContext(Class<?>[] params) {
+    private static boolean lastParameterIsContext(Class<?>[] params) {
         return params.length != 0 && isContext(params[params.length - 1]);
     }
 
@@ -725,10 +728,9 @@ public final class EventHandlerLoader {
         public int compare(Method lhs, Method rhs) {
 
             //1. Non bridge methods are preferred over bridge methods.
-            if (! lhs.isBridge() && rhs.isBridge()) {
+            if (!lhs.isBridge() && rhs.isBridge()) {
                 return -1;
-            }
-            else if (!rhs.isBridge() && lhs.isBridge()) {
+            } else if (!rhs.isBridge() && lhs.isBridge()) {
                 return 1;
             }
 
@@ -823,28 +825,13 @@ public final class EventHandlerLoader {
     }
 
     @SuppressWarnings({"rawtypes"})
-    public static LambdaRequestHandler wrapPojoHandler(RequestHandler instance, Type pType, Type rType) {
+    private static LambdaRequestHandler wrapPojoHandler(RequestHandler instance, Type pType, Type rType) {
         return wrapRequestStreamHandler(new PojoHandlerAsStreamHandler(instance, Optional.ofNullable(pType),
                 isVoid(rType) ? Optional.<Type>empty() : Optional.of(rType)
         ));
     }
 
-    public static String exceptionToString(Throwable t) {
-        StringWriter writer = new StringWriter(65536);
-        try (PrintWriter wrapped = new PrintWriter(writer)) {
-            t.printStackTrace(wrapped);
-        }
-        StringBuffer buffer = writer.getBuffer();
-        if (buffer.length() > 262144) {
-            final String extra = " Truncated by Lambda";
-            buffer.delete(262144, buffer.length());
-            buffer.append(extra);
-        }
-
-        return buffer.toString();
-    }
-
-    public static LambdaRequestHandler wrapRequestStreamHandler(final RequestStreamHandler handler) {
+    private static LambdaRequestHandler wrapRequestStreamHandler(final RequestStreamHandler handler) {
         return new LambdaRequestHandler() {
             private final ByteArrayOutputStream output = new ByteArrayOutputStream(1024);
             private Functions.V2<String, String> log4jContextPutMethod = null;
@@ -855,14 +842,31 @@ public final class EventHandlerLoader {
                     Class<?> log4jContextClass = ReflectUtil.loadClass(AWSLambda.customerClassLoader, log4jContextClassName);
                     log4jContextPutMethod = ReflectUtil.loadStaticV2(log4jContextClass, "put", false, String.class, contextMapValueClass);
                     log4jContextPutMethod.call("AWSRequestId", request.getId());
-                } catch (Exception e) {}
+                } catch (Exception e) {
+                }
+            }
+
+            /**
+             * Passes the LambdaContext to the logger so that the JSON formatter can include the requestId.
+             *
+             * We do casting here because both the LambdaRuntime and the LambdaLogger is in the core package,
+             * and the setLambdaContext(context) is a method we don't want to publish for customers. That method is
+             * only implemented on the internal LambdaContextLogger, so we check and cast to be able to call it.
+             * @param context the LambdaContext
+             */
+            private void safeAddContextToLambdaLogger(LambdaContext context) {
+                LambdaLogger logger = com.amazonaws.services.lambda.runtime.LambdaRuntime.getLogger();
+                if (logger instanceof LambdaContextLogger) {
+                    LambdaContextLogger contextLogger = (LambdaContextLogger) logger;
+                    contextLogger.setLambdaContext(context);
+                }
             }
 
             public ByteArrayOutputStream call(InvocationRequest request) throws Error, Exception {
                 output.reset();
 
                 LambdaCognitoIdentity cognitoIdentity = null;
-                if(request.getCognitoIdentity() != null && !request.getCognitoIdentity().isEmpty()) {
+                if (request.getCognitoIdentity() != null && !request.getCognitoIdentity().isEmpty()) {
                     cognitoIdentity = getCognitoSerializer().fromJson(request.getCognitoIdentity());
                 }
 
@@ -884,6 +888,8 @@ public final class EventHandlerLoader {
                         request.getInvokedFunctionArn(),
                         clientContext
                 );
+
+                safeAddContextToLambdaLogger(context);
 
                 if (LambdaRuntimeInternal.getUseLog4jAppender()) {
                     safeAddRequestIdToLog4j("org.apache.log4j.MDC", request, Object.class);

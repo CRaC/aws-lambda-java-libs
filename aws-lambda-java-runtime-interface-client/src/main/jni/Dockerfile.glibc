@@ -1,40 +1,36 @@
-# we use centos 7 to build against glibc 2.17
-FROM centos:7
+FROM public.ecr.aws/amazonlinux/amazonlinux:2
 
-# Add Corretto repository
-RUN rpm --import https://yum.corretto.aws/corretto.key && \
-    curl -L -o /etc/yum.repos.d/corretto.repo https://yum.corretto.aws/corretto.repo
+ARG CURL_VERSION
 
-# aws-lambda-cpp requires cmake3, it's available in EPEL
-RUN yum install -y epel-release
 RUN yum install -y \
         cmake3 \
+        tar \
+        gzip \
         make \
+        patch \
         gcc \
         gcc-c++ \
-        libstdc++-static \
-        glibc-devel \
-        gmp-devel \
-        libmpc-devel \
-        libtool \
-        mpfr-devel \
-        wget \
-        java-1.8.0-amazon-corretto-devel
+        java-11-amazon-corretto
 
 # Install curl dependency
-ADD ./deps/curl-* /src/deps/curl
-WORKDIR /src/deps/curl
+COPY ./deps/curl-$CURL_VERSION.tar.gz /src/deps/
+COPY ./deps/curl_001_disable_wakeup.patch /src/deps/
+
+RUN tar xzf /src/deps/curl-$CURL_VERSION.tar.gz -C /src/deps
+
+WORKDIR /src/deps/curl-$CURL_VERSION
+RUN patch lib/multihandle.h ../curl_001_disable_wakeup.patch
 RUN ./configure \
         --prefix $(pwd)/../artifacts \
         --disable-shared \
         --without-ssl \
+        --with-pic \
         --without-zlib && \
     make && \
     make install
 
 # Install aws-lambda-cpp dependency
 ADD ./deps/aws-lambda-cpp-* /src/deps/aws-lambda-cpp
-RUN sed -i.bak 's/VERSION 3.9/VERSION 3.6/' /src/deps/aws-lambda-cpp/CMakeLists.txt
 RUN mkdir -p /src/deps/aws-lambda-cpp/build
 WORKDIR /src/deps/aws-lambda-cpp/build
 RUN cmake3 .. \
@@ -49,7 +45,7 @@ RUN cmake3 .. \
 # Build native client
 ADD *.cpp *.h /src/
 WORKDIR /src
-ENV JAVA_HOME=/usr/lib/jvm/java-1.8.0-amazon-corretto
+ENV JAVA_HOME=/usr/lib/jvm/java-11-amazon-corretto
 RUN /usr/bin/c++ -c \
         -std=gnu++11 \
         -fPIC \
@@ -65,4 +61,5 @@ RUN /usr/bin/c++ -c \
         -laws-lambda-runtime \
         -lcurl \
         -static-libstdc++ \
-        -lrt
+        -lrt \
+        -O2

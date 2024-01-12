@@ -4,7 +4,7 @@
 
     <groupId>com.amazonaws</groupId>
     <artifactId>aws-lambda-java-serialization</artifactId>
-    <version>1.0.0</version>
+    <version>1.1.5</version>
     <packaging>jar</packaging>
 
     <name>AWS Lambda Java Runtime Serialization</name>
@@ -32,6 +32,10 @@
         <maven.compiler.source>1.8</maven.compiler.source>
         <maven.compiler.target>1.8</maven.compiler.target>
         <relocation.prefix>com.amazonaws.lambda.thirdparty</relocation.prefix>
+        <jackson.version>2.14.2</jackson.version>
+        <gson.version>2.10.1</gson.version>
+        <json.version>20231013</json.version>
+        <owasp.version>7.3.2</owasp.version>
     </properties>
 
     <!-- If you're adding a new dependency, make sure it and its dependencies are relocated in the shade stage below -->
@@ -39,30 +43,32 @@
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
-            <version>2.10.0</version>
+            <version>${jackson.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.datatype</groupId>
+            <artifactId>jackson-datatype-joda</artifactId>
+            <version>${jackson.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.datatype</groupId>
+            <artifactId>jackson-datatype-jsr310</artifactId>
+            <version>${jackson.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.datatype</groupId>
+            <artifactId>jackson-datatype-jdk8</artifactId>
+            <version>${jackson.version}</version>
         </dependency>
         <dependency>
             <groupId>com.google.code.gson</groupId>
             <artifactId>gson</artifactId>
-            <version>2.8.5</version>
+            <version>${gson.version}</version>
         </dependency>
         <dependency>
             <groupId>org.json</groupId>
             <artifactId>json</artifactId>
-            <version>20160810</version>
-        </dependency>
-
-        <dependency>
-            <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter-engine</artifactId>
-            <version>5.7.0</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.amazonaws</groupId>
-            <artifactId>aws-lambda-java-events</artifactId>
-            <version>3.8.0</version>
-            <scope>test</scope>
+            <version>${json.version}</version>
         </dependency>
     </dependencies>
 
@@ -79,7 +85,7 @@
                     <plugin>
                         <groupId>org.owasp</groupId>
                         <artifactId>dependency-check-maven</artifactId>
-                        <version>5.3.2</version>
+                        <version>${owasp.version}</version>
                         <executions>
                             <execution>
                                 <phase>validate</phase>
@@ -213,6 +219,16 @@
                                 <relocation>
                                     <pattern>org.json</pattern>
                                     <shadedPattern>${relocation.prefix}.org.json</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>org.joda.time</pattern>
+                                    <shadedPattern>${relocation.prefix}.org.joda.time</shadedPattern>
+                                </relocation>
+                                <!-- Workaround not to let maven shade plugin relocating string literals
+                                https://issues.apache.org/jira/browse/MSHADE-156 -->
+                                <relocation>
+                                    <pattern>com.amazonaws.lambda.unshade.thirdparty.org.joda.time</pattern>
+                                    <shadedPattern>org.joda.time</shadedPattern>
                                 </relocation>
                             </relocations>
                             <filters>

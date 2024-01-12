@@ -4,7 +4,7 @@
 
     <groupId>com.amazonaws</groupId>
     <artifactId>aws-lambda-java-tests</artifactId>
-    <version>1.0.1</version>
+    <version>1.1.1</version>
     <packaging>jar</packaging>
 
     <name>AWS Lambda Java Tests</name>
@@ -32,19 +32,20 @@
         <maven.compiler.source>1.8</maven.compiler.source>
         <maven.compiler.target>1.8</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <junit.version>5.7.0</junit.version>
+        <junit.version>5.9.2</junit.version>
+        <jacoco.maven.plugin.version>0.8.7</jacoco.maven.plugin.version>
     </properties>
 
     <dependencies>
         <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>aws-lambda-java-serialization</artifactId>
-            <version>1.0.0</version>
+            <version>1.1.5</version>
         </dependency>
         <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>aws-lambda-java-events</artifactId>
-            <version>3.8.0</version>
+            <version>3.11.4</version>
         </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
@@ -64,13 +65,13 @@
         <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-lang3</artifactId>
-            <version>3.11</version>
+            <version>3.12.0</version>
         </dependency>
 
         <dependency>
             <groupId>org.assertj</groupId>
             <artifactId>assertj-core</artifactId>
-            <version>3.18.1</version>
+            <version>3.24.2</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
@@ -127,7 +128,7 @@
                     <plugin>
                         <groupId>org.jacoco</groupId>
                         <artifactId>jacoco-maven-plugin</artifactId>
-                        <version>0.8.6</version>
+                        <version>${jacoco.maven.plugin.version}</version>
                         <executions>
                             <execution>
                                 <id>default-prepare-agent</id>

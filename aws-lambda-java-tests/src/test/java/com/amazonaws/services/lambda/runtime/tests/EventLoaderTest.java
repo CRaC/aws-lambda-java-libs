@@ -82,6 +82,9 @@ public class EventLoaderTest {
 
         KafkaEvent.KafkaEventRecord record = event.getRecords().get("mytopic-01").get(0);
         assertThat(record.getValue()).decodedAsBase64().asString().isEqualTo("Hello from Kafka !!");
+         
+        String headerValue = new String(record.getHeaders().get(0).get("headerKey"));    
+        assertThat(headerValue).isEqualTo("headerValue");
     }
 
     @Test
@@ -157,27 +160,43 @@ public class EventLoaderTest {
 
     @Test
     public void testLoadDynamoEvent() {
-        DynamodbEvent event = EventLoader.loadDynamoDbEvent("dynamo_event.json");
+        DynamodbEvent event = EventLoader.loadDynamoDbEvent("ddb/dynamo_event.json");
         assertThat(event).isNotNull();
         assertThat(event.getRecords()).hasSize(3);
+        assertDynamoDbStreamRecord(event.getRecords().get(1));
+    }
 
-        DynamodbEvent.DynamodbStreamRecord record = event.getRecords().get(0);
+    @Test
+    public void testLoadDynamoDbStreamRecord() {
+        assertDynamoDbStreamRecord(EventLoader.loadDynamoDbStreamRecord("ddb/dynamo_ddb_stream_record.json"));
+    }
+
+    private static void assertDynamoDbStreamRecord(final DynamodbEvent.DynamodbStreamRecord record) {
         assertThat(record)
+                .isNotNull()
                 .returns("arn:aws:dynamodb:eu-central-1:123456789012:table/ExampleTableWithStream/stream/2015-06-27T00:48:05.899", from(DynamodbEvent.DynamodbStreamRecord::getEventSourceARN))
-                .returns("INSERT", from(Record::getEventName));
+                .returns("MODIFY", from(Record::getEventName));
 
         StreamRecord streamRecord = record.getDynamodb();
         assertThat(streamRecord)
-                .returns("4421584500000000017450439091", StreamRecord::getSequenceNumber)
-                .returns(26L, StreamRecord::getSizeBytes)
+                .returns("4421584500000000017450439092", StreamRecord::getSequenceNumber)
+                .returns(59L, StreamRecord::getSizeBytes)
                 .returns("NEW_AND_OLD_IMAGES", StreamRecord::getStreamViewType)
-                .returns(Date.from(ofEpochSecond(1428537600)), StreamRecord::getApproximateCreationDateTime);
+                .returns(Date.from(ofEpochSecond(1635734407).plusNanos(123456789)), StreamRecord::getApproximateCreationDateTime);
 
-        assertThat(streamRecord.getKeys()).contains(entry("Id", new AttributeValue().withN("101")));
-        assertThat(streamRecord.getNewImage()).containsAnyOf(
-                entry("Message", new AttributeValue("New item!")),
-                entry("Id", new AttributeValue().withN("101"))
-        );
+        assertThat(streamRecord.getKeys())
+                .isNotNull()
+                .contains(entry("Id", new AttributeValue().withN("101")));
+        assertThat(streamRecord.getNewImage())
+                .isNotNull()
+                .containsAnyOf(
+                        entry("Message", new AttributeValue("This item has changed")),
+                        entry("Id", new AttributeValue().withN("101")));
+        assertThat(streamRecord.getOldImage())
+                .isNotNull()
+                .containsAnyOf(
+                        entry("Message", new AttributeValue("New item!")),
+                        entry("Id", new AttributeValue().withN("101")));
     }
 
     @Test
@@ -200,6 +219,15 @@ public class EventLoaderTest {
 
         assertThat(event.getMessages().get(0).getMessageID()).isEqualTo("ID:b-9bcfa592-423a-4942-879d-eb284b418fc8-1.mq.us-west-2.amazonaws.com-37557-1234520418293-4:1:1:1:1");
         assertThat(event.getMessages().get(1).getMessageID()).isEqualTo("ID:b-8bcfa572-428a-4642-879d-eb284b418fc8-1.mq.us-west-2.amazonaws.com-37557-1234520418293-4:1:1:1:1");
+    }
+
+    @Test
+    public void testLoadActiveMQEventWithProperties() {
+        ActiveMQEvent event = EventLoader.loadActiveMQEvent("mq_event.json");
+        assertThat(event).isNotNull();
+        assertThat(event.getMessages()).hasSize(2);
+        assertThat(event.getMessages().get(0).getProperties().get("testKey")).isEqualTo("testValue");
+        assertThat(event.getMessages().get(1).getProperties().get("testKey")).isEqualTo("testValue");
     }
 
     @Test
@@ -300,5 +328,39 @@ public class EventLoaderTest {
                 .returns("123e4567-e89b-12d3-a456-426614174000", from(SecretsManagerRotationEvent::getClientRequestToken))
                 .returns("arn:aws:secretsmanager:eu-central-1:123456789012:secret:/powertools/secretparam-xBPaJ5", from(SecretsManagerRotationEvent::getSecretId))
                 .returns("CreateSecret", from(SecretsManagerRotationEvent::getStep));
+    }
+
+    @Test
+    public void testLoadRabbitMQEvent() {
+        RabbitMQEvent event = EventLoader.loadRabbitMQEvent("rabbitmq_event.json");
+        assertThat(event).isNotNull();
+        assertThat(event)
+                .returns("aws:rmq", from(RabbitMQEvent::getEventSource))
+                .returns("arn:aws:mq:us-west-2:112556298976:broker:test:b-9bcfa592-423a-4942-879d-eb284b418fc8", from(RabbitMQEvent::getEventSourceArn));
+
+        Map<String, List<RabbitMQEvent.RabbitMessage>> messagesByQueue = event.getRmqMessagesByQueue();
+        assertThat(messagesByQueue).isNotEmpty();
+        List<RabbitMQEvent.RabbitMessage> messages = messagesByQueue.get("test::/");
+        assertThat(messages).hasSize(1);
+        RabbitMQEvent.RabbitMessage firstMessage = messages.get(0);
+        assertThat(firstMessage)
+                .returns(false, RabbitMQEvent.RabbitMessage::getRedelivered)
+                .returns("eyJ0aW1lb3V0IjowLCJkYXRhIjoiQ1pybWYwR3c4T3Y0YnFMUXhENEUifQ==", RabbitMQEvent.RabbitMessage::getData);
+
+        RabbitMQEvent.BasicProperties basicProperties = firstMessage.getBasicProperties();
+        assertThat(basicProperties)
+                .returns("text/plain", from(RabbitMQEvent.BasicProperties::getContentType))
+                .returns(1, from(RabbitMQEvent.BasicProperties::getDeliveryMode))
+                .returns(34, from(RabbitMQEvent.BasicProperties::getPriority))
+                .returns(60000, from(RabbitMQEvent.BasicProperties::getExpiration))
+                .returns("AIDACKCEVSQ6C2EXAMPLE", from(RabbitMQEvent.BasicProperties::getUserId))
+                .returns(80, from(RabbitMQEvent.BasicProperties::getBodySize))
+                .returns("Jan 1, 1970, 12:33:41 AM", from(RabbitMQEvent.BasicProperties::getTimestamp));
+
+        Map<String, Object> headers = basicProperties.getHeaders();
+        assertThat(headers).hasSize(3);
+        Map<String, List<Integer>> header1 = (Map<String, List<Integer>>) headers.get("header1");
+        assertThat(header1.get("bytes")).contains(118, 97, 108, 117, 101, 49);
+        assertThat((Integer) headers.get("numberInHeader")).isEqualTo(10);
     }
 }

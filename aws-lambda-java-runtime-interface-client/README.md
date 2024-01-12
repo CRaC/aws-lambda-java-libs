@@ -13,7 +13,7 @@ You can include this package in your preferred base image to make that base imag
 
 Choose a preferred base image. The Runtime Interface Client is tested on Amazon Linux, Alpine, Ubuntu, Debian, and CentOS. The requirements are that the image is:
 
-* built for x86_64
+* built for x86_64 and ARM64
 * contains Java >= 8
 * contains glibc >= 2.17 or musl
 
@@ -24,7 +24,7 @@ The Runtime Interface Client library can be installed into the image separate fr
 Dockerfile
 ```dockerfile
 # we'll use Amazon Linux 2 + Corretto 11 as our base
-FROM amazoncorretto:11 as base
+FROM public.ecr.aws/amazoncorretto/amazoncorretto:11 as base
 
 # configure the build environment
 FROM base as build
@@ -70,7 +70,7 @@ pom.xml
     <dependency>
       <groupId>com.amazonaws</groupId>
       <artifactId>aws-lambda-java-runtime-interface-client</artifactId>
-      <version>1.0.0</version>
+      <version>2.4.1</version>
     </dependency>
   </dependencies>
   <build>
@@ -150,6 +150,33 @@ DOCKERHUB_USERNAME=<dockerhub username>
 DOCKERHUB_PASSWORD=<dockerhub password>
 ```
 Recommended way is to set the Docker Hub credentials in CodeBuild job by retrieving them from AWS Secrets Manager.
+
+## Configuration
+The `aws-lambda-java-runtime-interface-client` JAR is a large uber jar, which contains compiled C libraries
+for x86_64 and aarch_64 for glibc and musl LIBC implementations. If the size is an issue, you can pick a smaller
+platform-specific JAR by setting the `<classifier>`.
+```
+<!-- Platform-specific Linux x86_64 JAR -->
+<dependency>
+    <groupId>com.amazonaws</groupId>
+    <artifactId>aws-lambda-java-runtime-interface-client</artifactId>
+    <version>2.4.1</version>
+    <classifier>linux-x86_64</classifier>
+</dependency>
+```
+
+Available platform classifiers: `linux-x86_64`, `linux-aarch_64`, `linux_musl-aarch_64`, `linux_musl-x86_64`
+
+The Lambda runtime interface client tries to load compatible library during execution, by unpacking it to a temporary
+location `/tmp/.libaws-lambda-jni.so`.
+If this behaviour is not desirable, it is possible to extract the `.so` files during build time and specify the location via
+`com.amazonaws.services.lambda.runtime.api.client.runtimeapi.NativeClient.JNI` system property, like
+```
+ENTRYPOINT [ "/usr/bin/java",
+"-Dcom.amazonaws.services.lambda.runtime.api.client.runtimeapi.NativeClient.JNI=/function/libaws-lambda-jni.linux_x86_64.so"
+"-cp", "./*",
+"com.amazonaws.services.lambda.runtime.api.client.AWSLambda" ]
+```
 
 ## Security
 

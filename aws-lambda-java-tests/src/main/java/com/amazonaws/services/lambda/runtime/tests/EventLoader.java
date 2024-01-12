@@ -65,6 +65,10 @@ public class EventLoader {
         return loadEvent(filename, DynamodbEvent.class);
     }
 
+    public static DynamodbEvent.DynamodbStreamRecord loadDynamoDbStreamRecord(String filename) {
+        return loadEvent(filename, DynamodbEvent.DynamodbStreamRecord.class);
+    }
+
     public static KafkaEvent loadKafkaEvent(String filename) {
         return loadEvent(filename, KafkaEvent.class);
     }
@@ -103,6 +107,10 @@ public class EventLoader {
 
     public static SQSEvent loadSQSEvent(String filename) {
         return loadEvent(filename, SQSEvent.class);
+    }
+
+    public static RabbitMQEvent loadRabbitMQEvent(String filename) {
+        return loadEvent(filename, RabbitMQEvent.class);
     }
 
     public static <T> T loadEvent(String filename, Class<T> targetClass) {

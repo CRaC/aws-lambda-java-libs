@@ -1,3 +1,61 @@
+### December 1, 2023
+`3.11.4`:
+- Improve `toString` in Cognito events by calling `super`
+- Added missing `version` field to ScheduledEvent from CloudWatch
+
+### September 1, 2023
+`3.11.3`:
+- Update challengeAnswer field format in CognitoUserPoolEvent 
+
+### May 18, 2023
+`3.11.2`:
+- Add missing fields to API Gateway request context
+
+### March 10, 2023
+`3.11.1`:
+- Extended ActiveMQEvent with custom properties ([#408](https://github.com/aws/aws-lambda-java-libs/pull/408))
+- Updated dependencies([#410](https://github.com/aws/aws-lambda-java-libs/pull/410)):
+  - `joda-time` from 2.6 to 2.10.8
+  - `jackson-databind` from 2.13.4.1 to 2.14.2
+  - `junit-jupiter-engine` from 5.7.0 to 5.9.2
+  - `json-unit-assertj` from 2.22.0 to 2.36.1
+
+### November 24, 2021
+`3.11.0`:
+- Added support for SQSaaES Partial Batch Feature ([#279](https://github.com/aws/aws-lambda-java-libs/pull/279))
+  - `SQSBatchResponse`
+
+### August 26, 2021
+`3.10.0`:
+- Added headers in `KafkaEventRecord` ([#260](https://github.com/aws/aws-lambda-java-libs/pull/260))
+- Added support for AppSync Lambda Authorizer ([#263](https://github.com/aws/aws-lambda-java-libs/pull/263))
+  - `AppSyncLambdaAuthorizerEvent`
+  - `AppSyncLambdaAuthorizerResponse`
+- Added support for RabbitMQ Event ([#256](https://github.com/aws/aws-lambda-java-libs/pull/256))
+  - `RabbitMQEvent`
+- Added missing `version` field to `APIGatewayProxyRequestEvent` ([#258](https://github.com/aws/aws-lambda-java-libs/pull/258))
+
+### June 2, 2021
+`3.9.0`:
+- Added support for Cognito User Pool events ([#175](https://github.com/aws/aws-lambda-java-libs/pull/175))
+  - `CognitoUserPoolCreateAuthChallengeEvent`
+  - `CognitoUserPoolCustomMessageEvent`
+  - `CognitoUserPoolDefineAuthChallengeEvent`
+  - `CognitoUserPoolEvent`
+  - `CognitoUserPoolMigrateUserEvent`
+  - `CognitoUserPoolPostAuthenticationEvent`
+  - `CognitoUserPoolPostConfirmationEvent`
+  - `CognitoUserPoolPreAuthenticationEvent`
+  - `CognitoUserPoolPreSignUpEvent`
+  - `CognitoUserPoolPreTokenGenerationEvent`
+  - `CognitoUserPoolVerifyAuthChallengeResponseEvent`
+- Added support for IAM Policy Responses for API Gateway REST APIs ([#213](https://github.com/aws/aws-lambda-java-libs/pull/213))
+ - `IamPolicyResponseV1`
+- Added default IntelliJ equals, hashCode and toString methods to `APIGatewayV2WebSocketEvent` ([#248](https://github.com/aws/aws-lambda-java-libs/pull/248))
+- Fixed toString method in `KinesisEvent` ([#245](https://github.com/aws/aws-lambda-java-libs/pull/245))
+- Changed `body` field to lowercase in `APIGatewayV2HTTPEvent` ([#236](https://github.com/aws/aws-lambda-java-libs/pull/236))
+- Added `principalOrgId` field to `APIGatewayProxyRequestEvent` ([#247](https://github.com/aws/aws-lambda-java-libs/pull/247))
+
 ### March 24, 2021
 `3.8.0`:
 - Added support for S3 Object Lambda event ([#229](https://github.com/aws/aws-lambda-java-libs/pull/229))
